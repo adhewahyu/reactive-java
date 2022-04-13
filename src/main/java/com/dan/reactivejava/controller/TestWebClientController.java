@@ -1,7 +1,8 @@
 package com.dan.reactivejava.controller;
 
-import com.alibaba.fastjson.JSON;
 import com.dan.reactivejava.model.response.EmployeeResponse;
+import com.dan.reactivejava.model.response.RestResponse;
+import com.dan.reactivejava.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -13,33 +14,41 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 @RestController
 @Slf4j
 @RequiredArgsConstructor
-@RequestMapping("/test")
+@RequestMapping("/employee")
 public class TestWebClientController {
 
-    private final WebClient client;
+    private final WebClient webClientBasic;
 
-    @GetMapping("/v1/employee/search/{id}")
-    public ResponseEntity<Object> testGetEmployeeById(@PathVariable("id") Long id){
-        Mono<EmployeeResponse> employeeResponseMono = client.get()
-                .uri("/employee/v1/search/"+id)
+    @GetMapping("/v1/test/search/{id}")
+    public ResponseEntity<RestResponse> testGetEmployeeById(@PathVariable("id") Long id) throws ExecutionException, InterruptedException {
+        Mono<EmployeeResponse> employeeResponseMono = webClientBasic.get()
+                .uri("/employee/v1/search/" + id)
                 .retrieve()
                 .bodyToMono(EmployeeResponse.class);
-        employeeResponseMono.subscribe(data-> log.info("Data = {}", JSON.toJSONString(data)));
-        return new ResponseEntity<>(employeeResponseMono, HttpStatus.OK);
+        EmployeeResponse employeeResponse = employeeResponseMono
+                .subscribeOn(Schedulers.boundedElastic())
+                .toFuture().get();
+        return new ResponseEntity<>(new RestResponse(employeeResponse, Constants.MSG_DATA_FOUND, true), HttpStatus.OK);
     }
 
-    @GetMapping("/v1/employee/search")
-    public ResponseEntity<Object> testGetEmployee(){
-        Flux<EmployeeResponse> employeeResponseFlux = client.get()
+    @GetMapping("/v1/test/search")
+    public ResponseEntity<RestResponse> testGetEmployee() throws ExecutionException, InterruptedException {
+        Flux<EmployeeResponse> employeeResponseFlux = webClientBasic.get()
                 .uri("/employee/v1/search")
                 .retrieve()
                 .bodyToFlux(EmployeeResponse.class);
-        employeeResponseFlux.subscribe(data-> log.info("Data = {}", JSON.toJSONString(data)));
-        return new ResponseEntity<>(employeeResponseFlux, HttpStatus.OK);
+        List<EmployeeResponse> employeeResponseList = employeeResponseFlux.collectList()
+                .subscribeOn(Schedulers.boundedElastic())
+                .toFuture().get();
+        return new ResponseEntity<>(new RestResponse(employeeResponseList, Constants.MSG_DATA_FOUND, true), HttpStatus.OK);
     }
 
 }

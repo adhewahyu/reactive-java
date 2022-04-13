@@ -1,5 +1,15 @@
+webclient:
+  connectTimeout: 2000
+  responseTimeout: 2000
+  readTimeout: 2000
+  writeTimeout: 2000
+  sslBypass: true
+  maxConnection: 2000
+  maxRoute: 2000
 server:
   port: 80
+  error:
+    include-message: always
 spring:
   application:
     name: reactive
